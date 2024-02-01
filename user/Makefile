@@ -1,8 +1,29 @@
-qemu-system-riscv64     -machine virt     -nographic     -bios ../bootloader/rustsbi-qemu.bin     -device loader,file=target/riscv64gc-unknown-none-elf/release/03priv_inst,addr=0x80200000
+TARGET := riscv64gc-unknown-none-elf
+MODE := release
+APP_DIR := src/bin
+TARGET_DIR := target/$(TARGET)/$(MODE)
+APPS := $(wildcard $(APP_DIR)/*.rs)
+ELFS := $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%, $(APPS))
+BINS := $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%.bin, $(APPS))
 
+OBJDUMP := rust-objdump --arch-name=riscv64
+OBJCOPY := rust-objcopy --binary-architecture=riscv64
+CP := cp 
 
+TEST ?= 
 
-cd user/target/riscv64gc-unknown-none-elf/release/
-qemu-riscv64 ./00hello_world
+elf: $(APPS)
+	@cargo build --release
+ifeq ($(TEST), 1)
+	@$(CP) $(TARGET_DIR)/usertests $(TARGET_DIR)/initproc
+endif
 
-qemu-riscv64  target/riscv64gc-unknown-none-elf/release/00hello_world
+binary: elf
+	@$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
+
+build: binary
+
+clean:
+	@cargo clean
+
+.PHONY: elf binary build clean

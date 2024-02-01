@@ -6,7 +6,7 @@ mod lang_items;
 use core::arch::global_asm;
 mod console;
 mod sbi;
-
+global_asm!(include_str!("link_app.S"));
 global_asm!(include_str!("entry.asm"));
 #[no_mangle] //#[no_mangle]以避免编译器对它的名字进行混淆
 pub fn rust_main()-> ! {
