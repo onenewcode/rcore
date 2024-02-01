@@ -1,55 +1,41 @@
-# Building
 TARGET := riscv64gc-unknown-none-elf
 MODE := release
 KERNEL_ELF := target/$(TARGET)/$(MODE)/os
-KERNEL_BIN := $(KERNEL_ELF)
+KERNEL_BIN := $(KERNEL_ELF).bin
 DISASM_TMP := target/$(TARGET)/$(MODE)/asm
-
-# Building mode argument
-ifeq ($(MODE), release)
-	MODE_ARG := --release
-endif
+KERNEL_ENTRY_PA := 0x80200000
 
 # BOARD
-BOARD ?= qemu
-SBI ?= rustsbi
+BOARD = qemu
+SBI = rustsbi
 BOOTLOADER := ../bootloader/$(SBI)-$(BOARD).bin
-K210_BOOTLOADER_SIZE := 131072
 
-# KERNEL ENTRY
-ifeq ($(BOARD), qemu)
-	KERNEL_ENTRY_PA := 0x80200000
-else ifeq ($(BOARD), k210)
-	KERNEL_ENTRY_PA := 0x80020000
-endif
 
-# Run K210
-K210-SERIALPORT	= /dev/ttyUSB0
-K210-BURNER = ../tools/kflash.py
 
 # Binutils
 OBJDUMP := rust-objdump --arch-name=riscv64
 OBJCOPY := rust-objcopy --binary-architecture=riscv64
 
-# Disassembly
-DISASM ?= -x
 
 build: env switch-check $(KERNEL_BIN)
 
 switch-check:
-ifeq ($(BOARD), qemu)
-	(which last-qemu) || (rm -f last-k210 && touch last-qemu && make clean)
-else ifeq ($(BOARD), k210)
-	(which last-k210) || (rm -f last-qemu && touch last-k210 && make clean)
-endif
+# (which last-qemu): 这部分使用 which 命令查找名为 last-qemu 的可执行文件在系统中的路径。如果找到了该文件，则返回其路径；否则，返回非零退出状态（表示未找到）。
+# ||：这是逻辑或运算符，在 shell 中用于连接两个命令。如果左侧的命令执行失败（即返回非零退出状态），则执行右侧的命令。
+	(which last-qemu) || (touch last-qemu && make clean)
+env:
+	(rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add $(TARGET)
+	cargo install cargo-binutils --vers =0.3.3
+	rustup component add rust-src
+	rustup component add llvm-tools-preview
 
 $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
 
 kernel:
-	@cd ../user && make build
+	@cd ../user && make build 
 	@echo Platform: $(BOARD)
-	@cargo build $(MODE_ARG) --features "board_$(BOARD)"
+	@cargo build --release
 clean:
 	@cargo clean
 
@@ -62,8 +48,6 @@ disasm-vim: kernel
 	@rm $(DISASM_TMP)
 
 run: run-inner
-
-	
 
 run-inner: build
 ifeq ($(BOARD),qemu)
@@ -88,10 +72,4 @@ debug: build
 		tmux split-window -h "riscv64-unknown-elf-gdb -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
 		tmux -2 attach-session -d
 
-gdbserver: build
-	@qemu-system-riscv64 -machine virt -nographic -bios $(BOOTLOADER) -device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA) -s -S
-
-gdbclient:
-	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
-
-.PHONY: build env kernel clean disasm disasm-vim run-inner switch-check gdbserver gdbclient
+.PHONY: build env kernel clean disasm disasm-vim run-inner switch-check
