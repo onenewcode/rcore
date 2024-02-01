@@ -1,7 +1,8 @@
 #![no_std]
 #![feature(linkage)]
 #![feature(panic_info_message)]
-
+mod lang_items;
+pub mod console;
 mod syscall;
 use syscall::*; 
 #[no_mangle]
