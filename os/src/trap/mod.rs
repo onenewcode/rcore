@@ -12,8 +12,11 @@ use riscv::register::{
 global_asm!(include_str!("trap.S"));
 
 pub fn init() {
+    // __alltraps()内核态转换成用户态
     extern "C" { fn __alltraps(); }
     unsafe {
+        // 在 RISC-V 系统中，当处理器检测到异常、中断或其他需要进入特权模式处理的事件时，
+        //会触发陷阱（trap），并使用 stvec 寄存器指向的地址作为陷阱处理程序的入口地址。
         stvec::write(__alltraps as usize, TrapMode::Direct);
     }
 }

@@ -21,7 +21,7 @@ lazy_static! {
         let mut app_start: [usize; MAX_APP_NUM + 1] = [0; MAX_APP_NUM + 1];
         //这是 Rust 中创建未初始化或外部提供的原始内存切片的方法。它接受两个参数：
         // start：切片开始位置的原始指针，这里为 num_app_ptr.add(1)。
-        // len：切片中元素的数量，这里为 num_app + 1，表示要读取与已知应用程序数量相同数量的元素，再加上可能存在的额外终止标记或其他信息。
+        // len：切片中元素的数量，这里为 num_app + 1，因为要多读取一个结束地址，所以要num+1。
         let app_start_raw: &[usize] =  core::slice::from_raw_parts(
             //是对指针进行偏移操作。这里的 num_app_ptr 是一个指向 usize 类型数据的指针。.add(1) 方法会将指针向后移动一个单位（单位是当前类型大小）
             num_app_ptr.add(1), num_app + 1
@@ -40,12 +40,19 @@ struct KernelStack {
     data: [u8; KERNEL_STACK_SIZE],
 }
 impl KernelStack {
+    // 返回当前内核栈顶指针。
+    //这里假设栈从 data 数组的高地址向低地址增长，那么首地址便是最小值
+    //所以通过将数组首地址转换为整数并加上 KERNEL_STACK_SIZE 来得到栈顶位置。
     fn get_sp(&self) -> usize {
         self.data.as_ptr() as usize + KERNEL_STACK_SIZE
     }
     pub fn push_context(&self, cx: TrapContext) -> &'static mut TrapContext {
+        // 使用 self.get_sp() 获取当前内核栈顶指针（Stack Pointer）。
+        // 顶指针减去 core::mem::size_of::<TrapContext>()，确保分配的空间足够存放整个 TrapContext 结构体，并且新分配的位置在栈顶下方。
+        // 算得到的地址转换为 *mut TrapContext 类型的指针。
         let cx_ptr = (self.get_sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
         unsafe {
+            //直接将给定的 cx 值写入到栈上计算出的位置
             *cx_ptr = cx;
         }
         unsafe { cx_ptr.as_mut().unwrap() }

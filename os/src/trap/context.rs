@@ -13,6 +13,7 @@ pub struct TrapContext {
 // 执行 sret 从 S 特权级切换到 U 特权级。
 
 impl TrapContext {
+    // x2寄存器存储栈指针
     pub fn set_sp(&mut self, sp: usize) { self.x[2] = sp; }
     pub fn app_init_context(entry: usize, sp: usize) -> Self {
         let mut sstatus = sstatus::read();
