@@ -11,6 +11,8 @@ mod sbi;
 mod sync;
 pub mod syscall;
 pub mod trap;
+mod loader;
+mod config;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
