@@ -31,7 +31,7 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
         //系统调用，表示用户用ecall函数调用，
         Trap::Exception(Exception::UserEnvCall) => {
             //sepc  异常程序计数器
-            cx.sepc += 4;//指向ecall指令的下一条地址，因为内核是4字节对齐这里，加4
+            cx.sepc += 4;//指向ecall指令的下一条地址,因为程序简单只需要跳过ecall所以地址加4
             cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
         }
         Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {

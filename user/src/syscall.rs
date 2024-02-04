@@ -6,6 +6,8 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;//isize表示指针
     unsafe {
         asm!(
+            // ecall 是RISC-V架构的环境调用指令，用于触发操作系统内核提供的服务，比如读写文件、创建进程等。
+            // 调用接下来会回到，os/trap/mod.rs
             "ecall",
             inlateout("x10") args[0] => ret, //寄存器在执行完汇编代码后的内容将被返回给 ret 变量
             in("x11") args[1],
