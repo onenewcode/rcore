@@ -23,7 +23,7 @@ __switch:
     sd ra, 0(a0)
     .set n, 0
     .rept 12
-        SAVE_SN %n·
+        SAVE_SN %n
         .set n, n + 1
     .endr
     # 阶段 [3]

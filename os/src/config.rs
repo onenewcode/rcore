@@ -9,4 +9,4 @@ pub const APP_SIZE_LIMIT: usize = 0x20000;
 #[cfg(feature = "board_qemu")]
 pub const CLOCK_FREQ: usize = 12500000;
 // 这行代码引入了同一crate（库）内部的模块 board 中的 CLOCK_FREQ 常量，并将其作为当前作用域内的公有成员。
-pub use crate::board::CLOCK_FREQ;
+pub use crate::boards::qemu::CLOCK_FREQ;

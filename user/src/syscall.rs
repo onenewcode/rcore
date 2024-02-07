@@ -1,6 +1,8 @@
 use core::arch::asm;
 const SYSCALL_WRITE: usize = 64;//表示系统调用id
 const SYSCALL_EXIT: usize = 93;
+const SYSCALL_YIELD: usize = 124;
+const SYSCALL_GET_TIME: usize = 169;
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;//isize表示指针
@@ -30,4 +32,7 @@ pub fn sys_write(fd: usize, buf: &[u8]) -> isize {
 /// syscall ID：93
 pub fn sys_exit(xstate: i32) -> isize {
     syscall(SYSCALL_EXIT, [xstate as usize, 0, 0])
+}
+pub fn sys_yield() -> isize {
+    syscall(SYSCALL_YIELD, [0, 0, 0])
 }
