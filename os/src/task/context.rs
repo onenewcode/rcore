@@ -21,7 +21,7 @@ impl TaskContext {
         }
     }
 
-    /// set task context {__restore ASM funciton, kernel stack, s_0..12 }
+    // set task context {__restore ASM funciton, kernel stack, s_0..12 }
     pub fn goto_restore(kstack_ptr: usize) -> Self {
         extern "C" {
             fn __restore();
