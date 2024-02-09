@@ -17,6 +17,7 @@ impl KernelStack {
     fn get_sp(&self) -> usize {
         self.data.as_ptr() as usize + KERNEL_STACK_SIZE
     }
+    //将一个给定的TrapContext结构体压入到当前的栈上，并返回新分配内存区域的地址。
     pub fn push_context(&self, trap_cx: TrapContext) -> usize {
         let trap_cx_ptr = (self.get_sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
         unsafe {
@@ -78,7 +79,7 @@ pub fn load_apps() {
     }
 }
 
-/// get app info with entry and sp and save `TrapContext` in kernel stack
+// get app info with entry and sp and save `TrapContext` in kernel stack
 pub fn init_app_cx(app_id: usize) -> usize {
     KERNEL_STACK[app_id].push_context(TrapContext::app_init_context(
         get_base_i(app_id),
