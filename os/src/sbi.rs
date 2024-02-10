@@ -1,7 +1,15 @@
 pub fn console_putchar(c: usize) {
+    //，可以告诉编译器允许使用已弃用的功能，并且不会产生警告。
     #[allow(deprecated)]
     sbi_rt::legacy::console_putchar(c);
 }
+
+/// use sbi call to set timer
+pub fn set_timer(timer: usize) {
+    sbi_rt::set_timer(timer as _);
+}
+
+/// use sbi call to shutdown the kernel
 pub fn shutdown(failure: bool) -> ! {
     use sbi_rt::{system_reset, NoReason, Shutdown, SystemFailure};
     if !failure {
@@ -9,5 +17,5 @@ pub fn shutdown(failure: bool) -> ! {
     } else {
         system_reset(Shutdown, SystemFailure);
     }
-    unreachable!()//用于表示执行到该点时代码逻辑上不应该到达。当你认为某个分支或情况理论上不可能发生，但编译器无法静态推断这一点时，可以使用此宏。
+    unreachable!()
 }
