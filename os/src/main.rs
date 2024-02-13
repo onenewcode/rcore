@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+extern crate alloc;
 use core::arch::global_asm;
 #[macro_use]
 mod console;
@@ -11,6 +12,8 @@ mod loader;
 mod sbi;
 mod sync;
 mod timer;
+mod boards;
+mod mm;
 pub mod syscall;
 pub mod task;
 pub mod trap;
@@ -30,13 +33,16 @@ fn clear_bss() {
     }
 }
 
-/// the rust entry-point of os
 #[no_mangle]
+/// the rust entry-point of os
 pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
+    mm::init();
+    println!("[kernel] back to world!");
+    mm::remap_test();
     trap::init();
-    loader::load_apps();
+    //trap::enable_interrupt();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
     task::run_first_task();

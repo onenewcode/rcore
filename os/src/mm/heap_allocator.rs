@@ -5,7 +5,7 @@ use buddy_system_allocator::LockedHeap;
 #[global_allocator]
 // 堆内存分配实例
 // heap allocator instance
-static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
+static HEAP_ALLOCATOR: LockedHeap<4> = LockedHeap::empty();
 
 #[alloc_error_handler]
 // panic when heap allocation error occurs

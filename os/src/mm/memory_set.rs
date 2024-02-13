@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use core::arch::asm;
 use lazy_static::*;
 use riscv::register::satp;
-
+use bitflags::bitflags;
 extern "C" {
     fn stext();
     fn etext();
@@ -316,7 +316,7 @@ impl MapArea {
                 self.data_frames.insert(vpn, frame);
             }
         }
-        let pte_flags = PTEFlags::from_bits(self.map_perm.bits).unwrap();
+        let pte_flags = PTEFlags::from_bits(self.map_perm.bits()).unwrap();
         page_table.map(vpn, ppn, pte_flags);
     }
     #[allow(unused)]
