@@ -11,5 +11,6 @@ lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }
 log = "0.4"
 buddy_system_allocator = "0.9.1"
+bitflags = "2.4.2"
 [profile.release]
 debug = true
