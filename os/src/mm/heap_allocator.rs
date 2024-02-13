@@ -3,20 +3,20 @@ use buddy_system_allocator::LockedHeap;
 
 // 这个分配器将作为整个程序的默认内存分配器。
 #[global_allocator]
-// 堆内存分配实例
-// heap allocator instance
+/// 堆内存分配实例
+/// heap allocator instance
 static HEAP_ALLOCATOR: LockedHeap<4> = LockedHeap::empty();
 
 #[alloc_error_handler]
-// panic when heap allocation error occurs
+/// panic when heap allocation error occurs
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("Heap allocation error, layout = {:?}", layout);
 }
 
 // heap space ([u8; KERNEL_HEAP_SIZE])
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
-// 启动堆分配器
-// initiate heap allocator
+/// 启动堆分配器
+/// initiate heap allocator
 pub fn init_heap() {
     unsafe {
         HEAP_ALLOCATOR
