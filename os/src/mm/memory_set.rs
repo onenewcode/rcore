@@ -23,7 +23,7 @@ extern "C" {
     fn ekernel();
     fn strampoline();
 }
-// 页表项标志位 PTEFlags 的一个子集，仅保留 U/R/W/X 四个标志位
+/// 页表项标志位 PTEFlags 的一个子集，仅保留 U/R/W/X 四个标志位
 bitflags! {
     /// map permission corresponding to that in pte: `R W X U`
     pub struct MapPermission: u8 {
@@ -39,9 +39,9 @@ lazy_static! {
     pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
         Arc::new(unsafe { UPSafeCell::new(MemorySet::new_kernel()) });
 }
-// PageTable 下挂着所有多级页表的节点所在的物理页帧，而每个 MapArea 下则挂着对应逻辑段中的数据所在的物理页帧，
-// 这两部分合在一起构成了一个地址空间所需的所有物理页帧。
-// memory set structure, controls virtual-memory space
+/// PageTable 下挂着所有多级页表的节点所在的物理页帧，而每个 MapArea 下则挂着对应逻辑段中的数据所在的物理页帧，
+/// 这两部分合在一起构成了一个地址空间所需的所有物理页帧。
+/// memory set structure, controls virtual-memory space
 pub struct MemorySet {
     page_table: PageTable, // 多级页表
     areas: Vec<MapArea>, //向量
@@ -240,6 +240,7 @@ impl MemorySet {
             elf.header.pt2.entry_point() as usize,
         )
     }
+    /// 开启SV39分页模式
     pub fn activate(&self) {
         let satp = self.page_table.token();
         unsafe {

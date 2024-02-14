@@ -12,7 +12,7 @@ impl<T> UPSafeCell<T> {
             inner: RefCell::new(value),
         }
     }
-    //调用此方法意味着在同一时间只有一个线程可以获取到这个可变引用，
+    ///调用此方法意味着在同一时间只有一个线程可以获取到这个可变引用，
     pub fn exclusive_access(&self) -> RefMut<'_, T> {
         self.inner.borrow_mut()
     }

@@ -6,7 +6,7 @@ use core::fmt::{self, Debug, Formatter};
 use lazy_static::*;
 
 lazy_static! {
-    // frame allocator instance through lazy_static!
+    /// frame allocator instance through lazy_static!
     pub static ref FRAME_ALLOCATOR: UPSafeCell<FrameAllocatorImpl> =
         unsafe { UPSafeCell::new(FrameAllocatorImpl::new()) };
 }
@@ -55,6 +55,7 @@ pub struct StackFrameAllocator {
 }
 
 impl StackFrameAllocator {
+    /// 第一个参l 起始地址，第二个参数r 结束地址
     pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
         self.current = l.0;
         self.end = r.0;
@@ -89,9 +90,11 @@ impl FrameAllocator for StackFrameAllocator {
         self.recycled.push(ppn);
     }
 }
-// initiate the frame allocator using `ekernel` and `MEMORY_END`
+
+/// initiate the frame allocator using `ekernel` and `MEMORY_END`
 pub fn init_frame_allocator() {
     extern "C" {
+        // ekernel 内核内存的终止地址
         fn ekernel();
     }
     FRAME_ALLOCATOR.exclusive_access().init(
@@ -100,7 +103,7 @@ pub fn init_frame_allocator() {
     );
 }
 
-// allocate a frame
+/// allocate a frame
 pub fn frame_alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR
         .exclusive_access()
@@ -108,7 +111,7 @@ pub fn frame_alloc() -> Option<FrameTracker> {
         .map(FrameTracker::new)
 }
 
-// deallocate a frame
+/// deallocate a frame
 fn frame_dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }

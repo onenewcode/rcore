@@ -1,7 +1,7 @@
 use crate::config::KERNEL_HEAP_SIZE;
 use buddy_system_allocator::LockedHeap;
 
-// 这个分配器将作为整个程序的默认内存分配器。
+/// 这个分配器将作为整个程序的默认内存分配器。
 #[global_allocator]
 /// 堆内存分配实例
 /// heap allocator instance
@@ -13,9 +13,10 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("Heap allocation error, layout = {:?}", layout);
 }
 
-// heap space ([u8; KERNEL_HEAP_SIZE])
+/// heap space ([u8; KERNEL_HEAP_SIZE])
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 /// 启动堆分配器
+/// 
 /// initiate heap allocator
 pub fn init_heap() {
     unsafe {
