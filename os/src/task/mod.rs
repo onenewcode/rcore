@@ -178,7 +178,7 @@ pub fn exit_current_and_run_next() {
     mark_current_exited();
     run_next_task();
 }
-
+/// 获取当前应用的根页表
 /// Get the current 'Running' task's token.
 pub fn current_user_token() -> usize {
     TASK_MANAGER.get_current_token()

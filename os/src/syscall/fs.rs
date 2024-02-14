@@ -4,7 +4,7 @@ use crate::mm::translated_byte_buffer;
 use crate::task::current_user_token;
 
 const FD_STDOUT: usize = 1;
-
+/// 由于内核和应用地址空间的隔离， sys_write 不再能够直接访问位于应用空间中的数据，而需要手动查页表才能知道那些数据被放置在哪些物理页帧上并进行访问
 /// write buf of length `len`  to a file with `fd`
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     match fd {
