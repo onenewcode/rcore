@@ -162,7 +162,7 @@ impl From<PhysPageNum> for PhysAddr {
 }
 
 impl VirtPageNum {
-    // indexes 可以取出虚拟页号的三级页索引，并按照从高到低的顺序返回
+    /// indexes 可以取出虚拟页号的三级页索引，并按照从高到低的顺序返回
     pub fn indexes(&self) -> [usize; 3] {
         let mut vpn = self.0;
         let mut idx = [0usize; 3];
@@ -175,12 +175,13 @@ impl VirtPageNum {
 }
 
 impl PhysPageNum {
-    //  获取该物理页的入口地址
+    ///  获取页表项数组
     pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
+        // 转化为pageoff，然后获取下一个页表项
         let pa: PhysAddr = (*self).into();
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512) }
     }
-    // 得到物理页的数据
+    /// 得到物理页的数据
     pub fn get_bytes_array(&self) -> &'static mut [u8] {
         let pa: PhysAddr = (*self).into();
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }

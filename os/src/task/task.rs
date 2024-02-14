@@ -9,7 +9,9 @@ pub struct TaskControlBlock {
     pub task_status: TaskStatus,
     pub task_cx: TaskContext,
     pub memory_set: MemorySet,
-    pub trap_cx_ppn: PhysPageNum,
+    // 应用地址空间次高页的 Trap 上下文被实际存放在物理页帧的物理页号 trap_cx_ppn
+    pub trap_cx_ppn: PhysPageNum, 
+    // 统计了应用数据的大小
     pub base_size: usize,
     pub heap_bottom: usize,
     pub program_brk: usize,
@@ -22,8 +24,8 @@ impl TaskControlBlock {
     pub fn get_user_token(&self) -> usize {
         self.memory_set.token()
     }
+    ///  memory_set with elf program headers/trampoline/trap context/user stack
     pub fn new(elf_data: &[u8], app_id: usize) -> Self {
-        // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
         let trap_cx_ppn = memory_set
             .translate(VirtAddr::from(TRAP_CONTEXT).into())
