@@ -1,17 +1,16 @@
-use core::panic::PanicInfo;
 use crate::println;
-
-#[panic_handler] //标记核心库panic!宏要对接的函数
-fn panic(info: &PanicInfo) -> ! {
-    if let Some(location) = info.location() {
+#[panic_handler]
+fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
+    let err = panic_info.message().unwrap();
+    if let Some(location) = panic_info.location() {
         println!(
-            "Panicked at {}:{} {}",
+            "Panicked at {}:{}, {}",
             location.file(),
             location.line(),
-            info.message().unwrap()
+            err
         );
     } else {
-        println!("Panicked: {}", info.message().unwrap());
+        println!("Panicked: {}", err);
     }
     loop {}
 }
