@@ -5,20 +5,14 @@ use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
 use lazy_static::*;
 
-lazy_static! {
-    /// frame allocator instance through lazy_static!
-    pub static ref FRAME_ALLOCATOR: UPSafeCell<FrameAllocatorImpl> =
-        unsafe { UPSafeCell::new(FrameAllocatorImpl::new()) };
-}
-
-type FrameAllocatorImpl = StackFrameAllocator;
-// 管理与跟踪器具有相同生命周期的帧
-// manage a frame which has the same lifecycle as the tracker
+/// manage a frame which has the same lifecycle as the tracker
 pub struct FrameTracker {
+    ///
     pub ppn: PhysPageNum,
 }
 
 impl FrameTracker {
+    ///Create an empty `FrameTracker`
     pub fn new(ppn: PhysPageNum) -> Self {
         // page cleaning
         let bytes_array = ppn.get_bytes_array();
@@ -34,24 +28,23 @@ impl Debug for FrameTracker {
         f.write_fmt(format_args!("FrameTracker:PPN={:#x}", self.ppn.0))
     }
 }
-// 当一个 FrameTracker 生命周期结束被编译器回收的时候，我们需要将它控制的物理页帧回收到 FRAME_ALLOCATOR 
+
 impl Drop for FrameTracker {
     fn drop(&mut self) {
         frame_dealloc(self.ppn);
     }
 }
-// 描述一个物理页帧管理器需要提供哪些功能
+
 trait FrameAllocator {
     fn new() -> Self;
     fn alloc(&mut self) -> Option<PhysPageNum>;
     fn dealloc(&mut self, ppn: PhysPageNum);
 }
-// 一种最简单的栈式物理页帧管理
-// an implementation for frame allocator
+/// an implementation for frame allocator
 pub struct StackFrameAllocator {
-    current: usize, //空闲内存的起始物理页号
-    end: usize,  //空闲内存的结束物理页号
-    recycled: Vec<usize>, //以后入先出的方式保存了被回收的物理页号
+    current: usize,
+    end: usize,
+    recycled: Vec<usize>,
 }
 
 impl StackFrameAllocator {
@@ -59,6 +52,7 @@ impl StackFrameAllocator {
     pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
         self.current = l.0;
         self.end = r.0;
+        println!("last {} Physical Frames.", self.end - self.current);
     }
 }
 impl FrameAllocator for StackFrameAllocator {
@@ -91,6 +85,13 @@ impl FrameAllocator for StackFrameAllocator {
     }
 }
 
+type FrameAllocatorImpl = StackFrameAllocator;
+
+lazy_static! {
+    /// frame allocator instance through lazy_static!
+    pub static ref FRAME_ALLOCATOR: UPSafeCell<FrameAllocatorImpl> =
+        unsafe { UPSafeCell::new(FrameAllocatorImpl::new()) };
+}
 /// initiate the frame allocator using `ekernel` and `MEMORY_END`
 pub fn init_frame_allocator() {
     extern "C" {
@@ -102,7 +103,6 @@ pub fn init_frame_allocator() {
         PhysAddr::from(MEMORY_END).floor(),
     );
 }
-
 /// allocate a frame
 pub fn frame_alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR
@@ -110,14 +110,13 @@ pub fn frame_alloc() -> Option<FrameTracker> {
         .alloc()
         .map(FrameTracker::new)
 }
-
 /// deallocate a frame
 fn frame_dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
 
 #[allow(unused)]
-// a simple test for frame allocator
+/// a simple test for frame allocator
 pub fn frame_allocator_test() {
     let mut v: Vec<FrameTracker> = Vec::new();
     for i in 0..5 {

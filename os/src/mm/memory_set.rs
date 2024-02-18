@@ -23,16 +23,6 @@ extern "C" {
     fn ekernel();
     fn strampoline();
 }
-/// 页表项标志位 PTEFlags 的一个子集，仅保留 U/R/W/X 四个标志位
-bitflags! {
-    /// map permission corresponding to that in pte: `R W X U`
-    pub struct MapPermission: u8 {
-        const R = 1 << 1;
-        const W = 1 << 2;
-        const X = 1 << 3;
-        const U = 1 << 4;
-    }
-}
 
 lazy_static! {
     /// 管理整个地址空间 从BASE_ADDRESS 到MEMORY_END
@@ -44,18 +34,19 @@ lazy_static! {
 /// 这两部分合在一起构成了一个地址空间所需的所有物理页帧。
 /// memory set structure, controls virtual-memory space
 pub struct MemorySet {
-    page_table: PageTable, // 多级页表
-    areas: Vec<MapArea>, //向量
+    page_table: PageTable,
+    areas: Vec<MapArea>,
 }
 
 impl MemorySet {
-    // 构建一个新的地址空间
+    ///Create an empty `MemorySet`
     pub fn new_bare() -> Self {
         Self {
             page_table: PageTable::new(),
             areas: Vec::new(),
         }
     }
+    ///Get pagetable `root_ppn`
     pub fn token(&self) -> usize {
         self.page_table.token()
     }
@@ -71,7 +62,18 @@ impl MemorySet {
             None,
         );
     }
-    /// 把一个MapArea区域添加到内存管理，首先要检查三级表中是否含有
+    ///Remove `MapArea` that starts with `start_vpn`
+    pub fn remove_area_with_start_vpn(&mut self, start_vpn: VirtPageNum) {
+        if let Some((idx, area)) = self
+            .areas
+            .iter_mut()
+            .enumerate()
+            .find(|(_, area)| area.vpn_range.get_start() == start_vpn)
+        {
+            area.unmap(&mut self.page_table);
+            self.areas.remove(idx);
+        }
+    }
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
@@ -169,7 +171,7 @@ impl MemorySet {
     /// also returns user_sp and entry point.
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
-        // map trampoline  
+        // map trampoline
         memory_set.map_trampoline();
         // map program headers of elf, with U flag
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
@@ -227,17 +229,6 @@ impl MemorySet {
             ),
             None,
         );
-        // 用于 sbrk 系统调用的额外映射区域
-        // used in sbrk
-        memory_set.push(
-            MapArea::new(
-                user_stack_top.into(),
-                user_stack_top.into(),
-                MapType::Framed,
-                MapPermission::R | MapPermission::W | MapPermission::U,
-            ),
-            None,
-        );
         // map TrapContext
         memory_set.push(
             MapArea::new(
@@ -254,7 +245,27 @@ impl MemorySet {
             elf.header.pt2.entry_point() as usize,
         )
     }
-    /// 开启SV39分页模式
+    ///Clone a same `MemorySet`
+    pub fn from_existed_user(user_space: &Self) -> Self {
+        let mut memory_set = Self::new_bare();
+        // map trampoline
+        memory_set.map_trampoline();
+        // copy data sections/trap_context/user_stack
+        for area in user_space.areas.iter() {
+            let new_area = MapArea::from_another(area);
+            memory_set.push(new_area, None);
+            // copy data from another space
+            for vpn in area.vpn_range {
+                let src_ppn = user_space.translate(vpn).unwrap().ppn();
+                let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
+                dst_ppn
+                    .get_bytes_array()
+                    .copy_from_slice(src_ppn.get_bytes_array());
+            }
+        }
+        memory_set
+    }
+    ///Refresh TLB with `sfence.vma`
     pub fn activate(&self) {
         let satp = self.page_table.token();
         unsafe {
@@ -263,38 +274,17 @@ impl MemorySet {
             asm!("sfence.vma");
         }
     }
+    ///Translate throuth pagetable
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.page_table.translate(vpn)
     }
-    #[allow(unused)]
-    pub fn shrink_to(&mut self, start: VirtAddr, new_end: VirtAddr) -> bool {
-        if let Some(area) = self
-            .areas
-            .iter_mut()
-            .find(|area| area.vpn_range.get_start() == start.floor())
-        {
-            area.shrink_to(&mut self.page_table, new_end.ceil());
-            true
-        } else {
-            false
-        }
-    }
-    #[allow(unused)]
-    pub fn append_to(&mut self, start: VirtAddr, new_end: VirtAddr) -> bool {
-        if let Some(area) = self
-            .areas
-            .iter_mut()
-            .find(|area| area.vpn_range.get_start() == start.floor())
-        {
-            area.append_to(&mut self.page_table, new_end.ceil());
-            true
-        } else {
-            false
-        }
+    ///Remove all `MapArea`
+    pub fn recycle_data_pages(&mut self) {
+        //*self = Self::new_bare();
+        self.areas.clear();
     }
 }
-// 地图区域结构，控制连续的虚拟内存
-// map area structure, controls a contiguous piece of virtual memory
+/// map area structure, controls a contiguous piece of virtual memory
 pub struct MapArea {
     vpn_range: VPNRange,
     data_frames: BTreeMap<VirtPageNum, FrameTracker>,
@@ -318,7 +308,14 @@ impl MapArea {
             map_perm,
         }
     }
-    /// 将vpn映射为ppn
+    pub fn from_another(another: &Self) -> Self {
+        Self {
+            vpn_range: VPNRange::new(another.vpn_range.get_start(), another.vpn_range.get_end()),
+            data_frames: BTreeMap::new(),
+            map_type: another.map_type,
+            map_perm: another.map_perm,
+        }
+    }
     pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         let ppn: PhysPageNum;
         match self.map_type {
@@ -334,38 +331,21 @@ impl MapArea {
         let pte_flags = PTEFlags::from_bits(self.map_perm.bits()).unwrap();
         page_table.map(vpn, ppn, pte_flags);
     }
-    #[allow(unused)]
     pub fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         if self.map_type == MapType::Framed {
             self.data_frames.remove(&vpn);
         }
         page_table.unmap(vpn);
     }
-    /// 将vpn
     pub fn map(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
             self.map_one(page_table, vpn);
         }
     }
-    #[allow(unused)]
     pub fn unmap(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
             self.unmap_one(page_table, vpn);
         }
-    }
-    #[allow(unused)]
-    pub fn shrink_to(&mut self, page_table: &mut PageTable, new_end: VirtPageNum) {
-        for vpn in VPNRange::new(new_end, self.vpn_range.get_end()) {
-            self.unmap_one(page_table, vpn)
-        }
-        self.vpn_range = VPNRange::new(self.vpn_range.get_start(), new_end);
-    }
-    #[allow(unused)]
-    pub fn append_to(&mut self, page_table: &mut PageTable, new_end: VirtPageNum) {
-        for vpn in VPNRange::new(self.vpn_range.get_end(), new_end) {
-            self.map_one(page_table, vpn)
-        }
-        self.vpn_range = VPNRange::new(self.vpn_range.get_start(), new_end);
     }
     /// data: start-aligned but maybe with shorter length
     /// assume that all frames were cleared before
@@ -395,11 +375,27 @@ impl MapArea {
 #[derive(Copy, Clone, PartialEq, Debug)]
 /// map type for memory set: identical or framed
 pub enum MapType {
-    Identical, //恒等映射方式
-    Framed, //虚地址与物理地址的映射关系是相对随机的
+    Identical,
+    Framed,
+}
+
+bitflags! {
+    /// map permission corresponding to that in pte: `R W X U`
+    #[derive(Copy, Clone, PartialEq, Debug)]
+    pub struct MapPermission: u8 {
+        ///Readable
+        const R = 1 << 1;
+        ///Writable
+        const W = 1 << 2;
+        ///Excutable
+        const X = 1 << 3;
+        ///Accessible in U mode
+        const U = 1 << 4;
+    }
 }
 
 #[allow(unused)]
+///Check PageTable running correctly
 pub fn remap_test() {
     let mut kernel_space = KERNEL_SPACE.exclusive_access();
     let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();

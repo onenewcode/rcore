@@ -1,33 +1,27 @@
+//! Implementation of physical and virtual address and page number.
 use super::PageTableEntry;
 use crate::config::{PAGE_SIZE, PAGE_SIZE_BITS};
 use core::fmt::{self, Debug, Formatter};
-
-// physical address
+/// physical address
 const PA_WIDTH_SV39: usize = 56;
 const VA_WIDTH_SV39: usize = 39;
 const PPN_WIDTH_SV39: usize = PA_WIDTH_SV39 - PAGE_SIZE_BITS;
 const VPN_WIDTH_SV39: usize = VA_WIDTH_SV39 - PAGE_SIZE_BITS;
 
-// a simple range structure for virtual page number
-pub type VPNRange = SimpleRange<VirtPageNum>;
-// 56位后十二位为偏移地址
-// physical address
+/// physical address
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysAddr(pub usize);
-// 39位后十二位为偏移地址
-// virtual address
+/// virtual address
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtAddr(pub usize);
-
-// physical page number
+/// physical page number
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysPageNum(pub usize);
-
-// virtual page number
+/// virtual page number
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtPageNum(pub usize);
 
-// Debugging
+/// Debugging
 impl Debug for VirtAddr {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("VA:{:#x}", self.0))
@@ -49,10 +43,9 @@ impl Debug for PhysPageNum {
     }
 }
 
-// T: {PhysAddr, VirtAddr, PhysPageNum, VirtPageNum}
-// T -> usize: T.0
-// usize -> T: usize.into()
-
+/// T: {PhysAddr, VirtAddr, PhysPageNum, VirtPageNum}
+/// T -> usize: T.0
+/// usize -> T: usize.into()
 impl From<usize> for PhysAddr {
     fn from(v: usize) -> Self {
         Self(v & ((1 << PA_WIDTH_SV39) - 1))
@@ -97,11 +90,12 @@ impl From<VirtPageNum> for usize {
         v.0
     }
 }
-
 impl VirtAddr {
+    ///`VirtAddr`->`VirtPageNum`
     pub fn floor(&self) -> VirtPageNum {
         VirtPageNum(self.0 / PAGE_SIZE)
     }
+    ///`VirtAddr`->`VirtPageNum`
     pub fn ceil(&self) -> VirtPageNum {
         if self.0 == 0 {
             VirtPageNum(0)
@@ -109,9 +103,11 @@ impl VirtAddr {
             VirtPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
         }
     }
+    ///Get page offset
     pub fn page_offset(&self) -> usize {
         self.0 & (PAGE_SIZE - 1)
     }
+    ///Check page aligned
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
@@ -127,12 +123,12 @@ impl From<VirtPageNum> for VirtAddr {
         Self(v.0 << PAGE_SIZE_BITS)
     }
 }
-
 impl PhysAddr {
-    // floor和ceil提供向下向上取整，方便进行转换
+    ///`PhysAddr`->`PhysPageNum`
     pub fn floor(&self) -> PhysPageNum {
         PhysPageNum(self.0 / PAGE_SIZE)
     }
+    ///`PhysAddr`->`PhysPageNum`
     pub fn ceil(&self) -> PhysPageNum {
         if self.0 == 0 {
             PhysPageNum(0)
@@ -140,11 +136,11 @@ impl PhysAddr {
             PhysPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
         }
     }
-    // 获取page offset值
+    ///Get page offset
     pub fn page_offset(&self) -> usize {
-        // 保留低位地址
         self.0 & (PAGE_SIZE - 1)
     }
+    ///Check page aligned
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
@@ -162,7 +158,7 @@ impl From<PhysPageNum> for PhysAddr {
 }
 
 impl VirtPageNum {
-    /// indexes 可以取出虚拟页号的三级页索引，并按照从高到低的顺序返回
+    ///Return VPN 3 level index
     pub fn indexes(&self) -> [usize; 3] {
         let mut vpn = self.0;
         let mut idx = [0usize; 3];
@@ -174,21 +170,27 @@ impl VirtPageNum {
     }
 }
 
+impl PhysAddr {
+    ///Get mutable reference to `PhysAddr` value
+    pub fn get_mut<T>(&self) -> &'static mut T {
+        unsafe { (self.0 as *mut T).as_mut().unwrap() }
+    }
+}
 impl PhysPageNum {
-    ///  获取页表项数组
+    ///Get `PageTableEntry` on `PhysPageNum`
     pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
-        // 转化为pageoff，然后获取下一个页表项
         let pa: PhysAddr = (*self).into();
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512) }
     }
-    /// 得到物理页的数据
+    ///
     pub fn get_bytes_array(&self) -> &'static mut [u8] {
         let pa: PhysAddr = (*self).into();
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
     }
+    ///
     pub fn get_mut<T>(&self) -> &'static mut T {
         let pa: PhysAddr = (*self).into();
-        unsafe { (pa.0 as *mut T).as_mut().unwrap() }
+        pa.get_mut()
     }
 }
 
@@ -266,4 +268,5 @@ where
         }
     }
 }
-
+/// a simple range structure for virtual page number
+pub type VPNRange = SimpleRange<VirtPageNum>;

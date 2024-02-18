@@ -43,9 +43,7 @@ __alltraps:
     sfence.vma
     # jump to trap_handler
     jr t1
-#它有两个参数：第一个是 Trap 上下文在应用地址空间中的位置
-#这个对于所有的应用来说都是相同的，在 a0 寄存器中传递；
-#第二个则是即将回到的应用的地址空间的 token ，在 a1 寄存器中传递。
+
 __restore:
     # a0: *TrapContext in user space(Constant); a1: user space token
     # switch to user space

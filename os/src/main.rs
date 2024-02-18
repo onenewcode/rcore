@@ -2,8 +2,15 @@
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+
 extern crate alloc;
-use core::arch::global_asm;
+
+
+
+
+#[path = "boards/qemu.rs"]
+mod board;
+
 #[macro_use]
 mod console;
 mod config;
@@ -11,16 +18,17 @@ mod lang_items;
 mod loader;
 mod sbi;
 mod sync;
-mod timer;
 mod boards;
 mod mm;
 pub mod syscall;
 pub mod task;
+mod timer;
 pub mod trap;
+
+use core::arch::global_asm;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
-
 /// clear BSS segment
 fn clear_bss() {
     extern "C" {
@@ -39,12 +47,14 @@ pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
     mm::init();
-    println!("[kernel] back to world!");
     mm::remap_test();
+    task::add_initproc();
+    println!("after initproc!");
     trap::init();
     //trap::enable_interrupt();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    task::run_first_task();
+    loader::list_apps();
+    task::run_tasks();
     panic!("Unreachable in rust_main!");
 }
