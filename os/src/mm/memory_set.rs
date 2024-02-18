@@ -211,7 +211,6 @@ impl MemorySet {
                 );
             }
         }
-        // 添加一个保护页以防止栈溢出。
 
         // map user stack with U flags
         let max_end_va: VirtAddr = max_end_vpn.into();
