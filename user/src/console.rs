@@ -1,9 +1,11 @@
-use super::write;
 use core::fmt::{self, Write};
 
-struct Stdout;
-
+const STDIN: usize = 0;
 const STDOUT: usize = 1;
+
+use super::{read, write};
+
+struct Stdout;
 
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
@@ -16,12 +18,9 @@ pub fn print(args: fmt::Arguments) {
     Stdout.write_fmt(args).unwrap();
 }
 
-#[macro_export] // 用于标记一个宏定义可以被外部crate导入和使用。
+#[macro_export]
 macro_rules! print {
-    // iteral表示匹配字面值
-    ($fmt: literal $(, $($arg: tt)+)?) => {//tt 表示单棵标记树
-            // 使用 format_args! 创建 Arguments 实例，但并不立即格式化字符串
-            // 下面的代码调用15的print函数
+    ($fmt: literal $(, $($arg: tt)+)?) => {
         $crate::console::print(format_args!($fmt $(, $($arg)+)?));
     }
 }
@@ -31,4 +30,10 @@ macro_rules! println {
     ($fmt: literal $(, $($arg: tt)+)?) => {
         $crate::console::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
     }
+}
+
+pub fn getchar() -> u8 {
+    let mut c = [0u8; 1];
+    read(STDIN, &mut c);
+    c[0]
 }
